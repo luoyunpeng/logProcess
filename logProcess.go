@@ -6,18 +6,36 @@ import (
 	"time"
 )
 
-type LogProcess struct {
-	logPath    string
-	DataSource string
-
-	readCh  chan string
-	writeCh chan string
+type LogReader interface {
+	Read(ch chan string)
 }
 
-//read
-func (logP *LogProcess) ReadLog() {
-	line := "log info test"
-	logP.readCh <- line
+type LogRead struct {
+	path string
+}
+
+func (read *LogRead) Read(ch chan string) {
+	ch <- "log test"
+}
+
+type LogWriter interface {
+	Write(ch chan string)
+}
+
+type LogWrite struct {
+	DataSource string
+}
+
+func (write *LogWrite) Write(ch chan string) {
+	fmt.Println(<-ch)
+}
+
+type LogProcess struct {
+	readCh  chan string
+	writeCh chan string
+
+	LogReader
+	LogWriter
 }
 
 // log process
@@ -26,22 +44,17 @@ func (logP *LogProcess) Process() {
 	logP.writeCh <- strings.ToLower(logData)
 }
 
-// log write
-func (logP *LogProcess) WriteTo(url string) {
-	fmt.Println(<-logP.writeCh)
-}
-
 func main() {
 	lp := &LogProcess{
-		logPath:    "",
-		DataSource: "",
-		readCh:     make(chan string),
-		writeCh:    make(chan string),
+		readCh:    make(chan string),
+		writeCh:   make(chan string),
+		LogReader: &LogRead{},
+		LogWriter: &LogWrite{},
 	}
 
-	go lp.ReadLog()
+	go lp.Read(lp.readCh)
 	go lp.Process()
-	go lp.WriteTo("")
+	go lp.Write(lp.writeCh)
 
 	time.Sleep(time.Second * 1)
 }
